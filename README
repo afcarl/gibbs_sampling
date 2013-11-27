@@ -1,0 +1,6 @@
+This is test code (scala) for parallel Gibbs sampling.
+
+Input: factor graph
+Output: histogram file
+Parameters: number of samples
+
