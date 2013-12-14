@@ -61,52 +61,50 @@ abstract class Factor(id0: Int, vars0: Array[Variable], w0: Weight) {
 // 
 // Several simple types of Factors
 //
-class OrFactor(id0: Int, vars0: Array[Variable], w0: Weight) extends Factor(id0: Int, vars0: Array[Variable], w0: Weight) {
-  override def WeightVariable(u: Variable): (Double, Double) = {
-    // If everything aside from u is false, then u is influential
-    /* (pos, neg) two variable weights correspond to v true and v false.
-     * Since we use exp, only the difference between pos and neg matters.
-     */
-    if (vars.filter(x => x != u).forall(v => !v.value)) {
-      return (w.w, 0.0)
+class OrFactor(id0 : Int, vars0: Array[Variable], w0 : Weight) extends Factor(id0 : Int, vars0: Array[Variable], w0 : Weight) { 
+  override def WeightVariable(u : Variable) : (Double,Double) = { 
+    // If everythign aside from u is false, then u is influential
+    if (vars.filter(x => x != u).forall(v => !v.value)) { 
+      return (w.w,0.0)
     }
-    return (0.0, 0.0)
+    return (0.0,0.0)
   }
-  override def EvaluateFactor(): Boolean = { return vars.exists(v => v.value) }
+  override def EvaluateFactor() : Boolean = { return vars.exists(v => v.value) }
 }
 
-class AndFactor(id0: Int, vars0: Array[Variable], w0: Weight) extends Factor(id0: Int, vars0: Array[Variable], w0: Weight) {
-  override def WeightVariable(u: Variable): (Double, Double) = {
+class AndFactor(id0 : Int, vars0: Array[Variable], w0 : Weight) extends Factor(id0 : Int, vars0: Array[Variable], w0 : Weight) { 
+  override def WeightVariable(u : Variable) : (Double,Double) = { 
     // if everything but u is true, then u is influential.
-    if (vars.filter(x => x != u).forall(v => v.value)) {
-      return (w.w, 0.0)
+    if (vars.filter(x => x != u).forall(v => v.value)) { 
+      return (w.w,0.0)
     }
-    return (0.0, 0.0)
+    return (0.0,0.0)
   }
-  override def EvaluateFactor(): Boolean = { return vars.forall(v => v.value) }
+  override def EvaluateFactor() : Boolean = { return vars.forall(v => v.value) }
 }
 
-class ImplyFactor(id0: Int, vars0: Array[Variable], w0: Weight) extends Factor(id0: Int, vars0: Array[Variable], w0: Weight) {
-  var imps = vars0.slice(0, vars.size - 1)
+class ImplyFactor(id0 : Int, vars0: Array[Variable], w0 : Weight) extends Factor(id0 : Int, vars0: Array[Variable], w0 : Weight) {
+  var imps   = vars0.slice(0,vars.size - 1)
   var output = vars0(vars.size - 1)
 
-  override def WeightVariable(u: Variable): (Double, Double) = {
+  override def WeightVariable(u : Variable) : (Double,Double) = { 
     // if either the body is false or the output ...
-    if (!imps.filter(x => x != u).forall(v => v.value) || ((output != u) && output.value)) {
-      return (0.0, 0.0)
-    } else {
-      if (output == u) {
-        return (w.w, 0.0)
-      } else {
-        return (0.0, w.w)
+    if (!imps.filter(x => x != u).forall(v => v.value) || ((output != u) && output.value)) { 
+      return (0.0,0.0)
+    } else { 
+      if( output == u ) { 
+	return (w.w,0.0)
+      } else { 
+	return (0.0,w.w)
       }
     }
-  }
-  override def EvaluateFactor(): Boolean = {
+  } 
+  override def EvaluateFactor() : Boolean = { 
     val n = vars.size
-    return vars.take(n - 1).forall(v => !v.value) || vars(n - 1).value
+    return vars.take(n - 1).forall(v => !v.value) || vars(n-1).value
   }
 }
+
 
 // ****************************************************
 // A Ce factor subsumes the above hardcoded factors. 
@@ -189,6 +187,16 @@ class FactorManager {
 
     // Joins all the threads
     for (i <- 0 until nThreads) { t(i).join() }
+    
+    // Merges the result
+    for (i <- 0 until nThreads) {
+      t(i) = new Thread(new MergeResult(this, masks(i).variables, i))
+      t(i).start()
+    }
+    
+    // Joins all the threads
+    for (i <- 0 until nThreads) { t(i).join() }
+
   }
 
   /* Calculates the probability that a variable is true */
@@ -238,12 +246,12 @@ class FactorManager {
   }
 
   // histogram file
-  def MarginalsFile(nSamples: Int, mask: Set[Variable], szOut: String) {
+  def MarginalsFile(nSamples: Int, mask: Set[Variable], nThreads: Int, szOut: String) {
     var trueCount = new HashMap[Variable, Int]()
     val startTime = System.nanoTime
     for (v <- variables) { trueCount(v) = 0 }
 
-    val nThreads = 2
+    //val nThreads = 1
 
     var masks = new Array[MaskVariable](nThreads)
     for (i <- 0 until nThreads) masks(i) = new MaskVariable(Set.empty[Variable])
@@ -255,6 +263,12 @@ class FactorManager {
       masks(i % nThreads).variables.add(v)
       i += 1
     }
+    /*val v1 = r.shuffle(variables.toList.filter(mask contains _))
+    var it = v1.grouped(v1.length / nThreads);
+    for (i <- 0 until nThreads) {
+      masks(i).variables ++= it.next
+    }*/
+    //for (i <- 0 until nThreads) masks(i).variables ++= mask
     val time1 = System.nanoTime
     println("partition " + (time1 - startTime) / 1e9)
 
@@ -264,12 +278,17 @@ class FactorManager {
 
       //var time3 = System.nanoTime
       //println("sample " + (time3 - time2) / 1e9)
+      
+      //mask.clear()
+      //for (i <- 0 until nThreads) mask ++= masks(i).variables
+      
       for (v <- variables) {
-        if (v.	value) { trueCount(v) += 1 }
+        if (v.value) { trueCount(v) += 1 }
       }
       if (i % 10 == 1) { print(".") }
     }
     val endTime = System.nanoTime
+  
     // println(trueCount.toList.map( x => (x._1.id,x._2)) + " of " + nSamples)
     // val data = trueCount.toList.map( x => (x._1.id,x._2, x._2/nSamples.toDouble))
     val time_s = (endTime - startTime) / 1e9
@@ -296,6 +315,13 @@ class Sample(fm: FactorManager, mask: Set[Variable], id0: Int) extends Runnable 
       var s = r.nextDouble()
       if (s * (1 + exp(neg0 - pos0)) <= 1.0) { v.setTrue() } else { v.setFalse() }
     }
+    Thread.`yield`()
+  }
+}
+
+class MergeResult(fm: FactorManager, mask: Set[Variable], id0:Int) extends Runnable {
+  def run() {
+    fm.variables ++= mask
     Thread.`yield`()
   }
 }
@@ -352,7 +378,7 @@ object CeParser {
       val wid = f(3).toInt
 
       val args = ht(fid).toList.sortWith(_._1 < _._1)
-      val signMap = args.map(q => (q._2, (q._3 < 0))).toMap
+      val signMap = args.map( q => (q._2, (q._3 < 0))).toMap
       fm.addFactor(new CeFactor(fid, args.map(_._2).toArray, htW(wid), signMap))
     }
     return fm
@@ -365,15 +391,70 @@ object CeParser {
   }
 }
 
+object DBParser {
+
+  // *****************************************
+  // * Helper functions to Parse DB's format *
+  // *****************************************
+  def parseWeight(szWeightName: String): Map[Int, Weight] = {
+    return Source.fromFile(szWeightName).getLines().map(_.split("\t")).map(
+      v =>
+        // [WEIGHT ID] [VALUE] [IS_FIXED_WEIGHT]
+        // new Weight(v(0).toInt, v(1).toDouble, v(2).toBoolean)
+        (v(0).toInt, new Weight(v(0).toInt, v(1).toDouble))).toMap
+  }
+
+  def parseVariables(szVarName: String, szFactorName: String,
+    htW: Map[Int, Weight]): FactorManager = {
+    val ht = new HashMap[Int, Set[(Int, Variable, Int)]] 
+    val vs = new HashMap[Int, Variable] 
+    val fm = new FactorManager()
+    // 0[VARIABLE_ID] 1[FACTOR_ID] 2[POSITION] 3[IS_POSITIVE] 4[DATA_TYPE] 5[INIT_VALUE] 6[IS_EVIDENCE] 7[IS_QUERY]
+    val iter = Source.fromFile(szVarName).getLines().map(_.split("\t"))
+    for (v <- iter) {
+      var varId: Int = v(0).toInt
+      val value = (v(5) != 0)
+      var x = new Variable(varId, value)
+      vs(varId) = x
+
+        val fid = v(1).toInt
+        val pos = v(2).toInt
+        val sign = if (v(3).toBoolean) 1 else 0
+        Util.checkAndAddSet[Int, (Int, Variable, Int)](ht, fid, (pos, x, sign))
+    }
+    println("Variables Created.")
+
+    // Now we can parse the Factors
+    // [FACTOR_ID] [WEIGHT ID] [FUNCTION_TYPE]
+    val factIt = Source.fromFile(szFactorName).getLines().map(_.split("\t"))
+    for (f <- factIt) {
+      val fid = f(0).toInt
+      val funId = f(2)
+      val wid = f(1).toInt
+
+      val args = ht(fid).toList.sortWith(_._1 < _._1)
+      //val signMap = args.map( q => (q._2, (q._3 < 0))).toMap
+      fm.addFactor(new ImplyFactor(fid, args.map(_._2).toArray, htW(wid)))
+    }
+    return fm
+  }
+
+  // Main parsing function for DB's format
+  def parse(szWeightName: String, szVarName: String, szFactorName: String): FactorManager = {
+    val htW = parseWeight(szWeightName)
+    return parseVariables(szVarName, szFactorName, htW)
+  }
+}
+
 object FactorTest {
 
-  def testP(nSamples: Int) {
-    val fm = CeParser.parse("eval/models.tsv", "eval/variables.tsv", "eval/factors.tsv")
-    fm.MarginalsFile(nSamples, fm.variables, "test.out")
+  def testP(nSamples: Int, nThreads: Int) {
+    val fm = DBParser.parse("eval/weights.tsv", "eval/variables.tsv", "eval/factors.tsv")
+    fm.MarginalsFile(nSamples, fm.variables, nThreads, "test.out")
   }
 
   def main(args: Array[String]) {
-    testP(args(0).toInt)
+    testP(args(0).toInt, args(1).toInt)
   }
 }
 
