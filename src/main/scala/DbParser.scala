@@ -1,3 +1,5 @@
+package org.hazy.gibbs
+
 import scala.collection.immutable.{ Map, List }
 import scala.collection.mutable._
 import scala.util.Random

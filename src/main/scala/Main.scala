@@ -1,3 +1,5 @@
+package org.hazy.gibbs
+
 import java.io.File
 
 object GibbsSampler extends App {
