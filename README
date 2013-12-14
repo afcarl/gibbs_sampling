@@ -1,6 +1,8 @@
 This is test code (scala) for parallel Gibbs sampling.
 
 Input: factor graph, in Denny's format
+  - file directory: eval
+  - files: varialbes.tsv, weights.tsv, factors.tsv 
 Output: histogram file
 Usage: FactorTest arg0 arg1
 arg0: int, number of samples
