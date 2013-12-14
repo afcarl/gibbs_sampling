@@ -1,6 +1,8 @@
 This is test code (scala) for parallel Gibbs sampling.
 
-Input: factor graph
+Input: factor graph, in Denny's format
 Output: histogram file
-Parameters: number of samples
+Usage: FactorTest arg0 arg1
+arg0: int, number of samples
+arg1: int, number of threads
 
